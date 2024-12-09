@@ -7,7 +7,7 @@ on:
 
 jobs:
   scan-dockerfiles:
-    runs-on: ubuntu-latest123
+    runs-on: ubuntu-latest1234
 
     steps:
     - name: Checkout Code
