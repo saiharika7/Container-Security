@@ -1,4 +1,4 @@
-name: Dockerfile Vulnerability Scan
+name: Dockerfile Vulnerability Scanning
 
 on:
   push:
