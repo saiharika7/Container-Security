@@ -1,0 +1,83 @@
+name: BuildScanPushDockerImage
+
+on:
+  workflow_dispatch:
+    inputs:
+      DockerFiles:
+        description: "Comma-separated list of Dockerfile paths (leave empty to auto-detect all)"
+        required: false
+        default: ""
+      ImageVersion:
+        description: "Provide the Image Version to Build"
+        required: true
+        default: "1.0"
+
+jobs:
+  ListAndProcessDockerfiles:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Find Dockerfiles
+      - name: Find Dockerfiles
+        id: find_dockerfiles
+        run: |
+          if [[ -z "${{ github.event.inputs.DockerFiles }}" ]]; then
+            dockerfiles=$(find . -name 'Dockerfile')
+            echo "Auto-detected Dockerfiles:"
+            echo "$dockerfiles"
+          else
+            dockerfiles=$(echo "${{ github.event.inputs.DockerFiles }}" | tr ',' '\n')
+          fi
+          echo "$dockerfiles" > dockerfiles.txt
+          echo "::set-output name=dockerfiles::$dockerfiles"
+        outputs:
+          dockerfiles: ${{ steps.find_dockerfiles.outputs.dockerfiles }}
+
+      # Step 3: Process each Dockerfile
+      - name: Build, Scan, and Push Images
+        id: process_images
+        env:
+          ACR_SERVER: ${{ secrets.ACR_SERVER }}
+          ACR_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        run: |
+          failed_images=""
+          while IFS= read -r dockerfile; do
+            echo "Processing Dockerfile: $dockerfile"
+            image_name=$(basename $(dirname $dockerfile)) # Use parent folder name as image name
+            image_version="${{ github.event.inputs.ImageVersion }}"
+            full_image_name="$ACR_SERVER/$image_name:$image_version"
+
+            # Build Docker Image
+            docker build -t "$full_image_name" -f "$dockerfile" .
+
+            # Scan Image with Trivy
+            echo "Scanning $full_image_name for vulnerabilities..."
+            scan_output=$(trivy image --severity HIGH,CRITICAL --format sarif --output trivy-results.sarif "$full_image_name")
+            if [[ $? -ne 0 ]]; then
+              echo "Scan failed for $full_image_name"
+              failed_images+="$full_image_name\n"
+              continue
+            fi
+
+            # Upload scan results
+            echo "Uploading scan results..."
+            gh api -X POST /repos/${{ github.repository }}/code-scanning/analysis \
+              -F name="Trivy results for $full_image_name" \
+              -F sarif=@trivy-results.sarif
+
+            # Push Docker Image to ACR
+            echo "Pushing image $full_image_name..."
+            echo "$ACR_PASSWORD" | docker login "$ACR_SERVER" -u "$ACR_USERNAME" --password-stdin
+            docker push "$full_image_name"
+          done < dockerfiles.txt
+
+          # Log failed images
+          if [[ -n "$failed_images" ]]; then
+            echo "The following images failed to process:"
+            echo -e "$failed_images"
+            exit 1
+          fi
