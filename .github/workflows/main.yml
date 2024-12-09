@@ -33,8 +33,6 @@ jobs:
           fi
           echo "$dockerfiles" > dockerfiles.txt
           echo "::set-output name=dockerfiles::$dockerfiles"
-        outputs:
-          dockerfiles: ${{ steps.find_dockerfiles.outputs.dockerfiles }}
 
       # Step 3: Process each Dockerfile
       - name: Build, Scan, and Push Images
