@@ -14,5 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port and specify the entrypoint
-EXPOSE 80
+EXPOSE 8000
 ENTRYPOINT ["python", "app.py"]
