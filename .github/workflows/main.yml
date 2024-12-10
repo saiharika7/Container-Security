@@ -60,6 +60,7 @@ jobs:
 
       - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
+        continue-on-error: false
         with:
           image-ref: ${{ env.FULL_IMAGE_NAME }}
           format: 'sarif'
@@ -72,9 +73,8 @@ jobs:
 
       - name: Push Docker Image to ACR
         run: |
-          echo "$ACR_PASSWORD" | docker login "$ACR_SERVER" -u "$ACR_USERNAME" --password-stdin
           docker push ${{ env.FULL_IMAGE_NAME }}
-
+          
       - name: Log Failed Images
         if: always()
         run: |
