@@ -5,7 +5,7 @@ FROM ubuntu:latest
 USER root
 
 # Installing packages without pinned versions and without using `-y`
-RUN apt-get update && apt-get install curl wget
+RUN apt-get update && apt-get install curl wget -y
 
 # Exposing an unnecessary port
 EXPOSE 443
