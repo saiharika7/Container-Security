@@ -10,6 +10,8 @@ COPY . /app
 # Expose the application port
 EXPOSE 80
 
+LABEL "author details"
+
 # Run the application
 ENTRYPOINT ["dotnet", "MyApp.dll"]
 
