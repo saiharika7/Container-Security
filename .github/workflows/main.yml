@@ -16,14 +16,13 @@ jobs:
   ListAndProcessDockerfiles:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout code
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Step 2: Find Dockerfiles
       - name: Find Dockerfiles
         id: find_dockerfiles
         run: |
+          > dockerfiles.txt
           if [[ -z "${{ github.event.inputs.DockerFiles }}" ]]; then
             dockerfiles=$(find . -name 'Dockerfile')
             echo "Auto-detected Dockerfiles:"
@@ -39,57 +38,49 @@ jobs:
           login-server: ${{ secrets.ACR_SERVER }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
-      # Step 3: Process each Dockerfile
-      - name: Build, Scan, and Push Images
-        env:
-          ACR_SERVER: ${{ secrets.ACR_SERVER }}
-          ACR_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-          ACR_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
-          DOCKERFILES: ${{ env.DOCKERFILES }}
+
+      - name: Install Trivy
+        run: |
+          echo "Installing Trivy..."
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          trivy --version
+
+      - name: Process Dockerfiles
         run: |
           failed_images=""
           while IFS= read -r dockerfile; do
             echo "Processing Dockerfile: $dockerfile"
-            image_name=$(basename $(dirname $dockerfile)) # Use parent folder name as image name
+            image_name=$(basename $(dirname $dockerfile))
             image_version="${{ github.event.inputs.ImageVersion }}"
-            full_image_name="$ACR_SERVER/$image_name:$image_version"
+            full_image_name="${{ secrets.ACR_SERVER }}/$image_name:$image_version"
 
             # Build Docker Image
-            docker build -t "$full_image_name" -f "$dockerfile" .
+            echo "Building image: $full_image_name"
+            if ! docker build -t "$full_image_name" -f "$dockerfile" .; then
+              echo "Failed to build $full_image_name"
+              failed_images="$failed_images\n$full_image_name (Build Failed)"
+              continue
+            fi
 
-            # Save Image Name for Next Steps
-            echo "FULL_IMAGE_NAME=$full_image_name" >> $GITHUB_ENV
+            # Trivy Scan
+            echo "Scanning image: $full_image_name"
+            if ! trivy image --severity HIGH,MEDIUM --exit-code 1 "$full_image_name"; then
+              echo "Vulnerability scan failed for $full_image_name"
+              failed_images="$failed_images\n$full_image_name (Vulnerabilities Found)"
+              continue
+            fi
 
-            # Trivy Scanning (Next Step)
+            # Push Docker Image
+            echo "Pushing image: $full_image_name"
+            if ! docker push "$full_image_name"; then
+              echo "Failed to push $full_image_name"
+              failed_images="$failed_images\n$full_image_name (Push Failed)"
+              continue
+            fi
           done < dockerfiles.txt
-        
 
-      - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@master
-        continue-on-error: false
-        with:
-          image-ref: ${{ env.FULL_IMAGE_NAME }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy Scan Results
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
-          
-      - name: Push Docker Image to ACR
-        run: |
-          echo "Pushing Docker Image: $FULL_IMAGE_NAME"
-          docker push $FULL_IMAGE_NAME
-        env:
-          FULL_IMAGE_NAME: ${{ env.FULL_IMAGE_NAME }}
-
-          
-      - name: Log Failed Images
-        if: always()
-        run: |
+          # Log and fail the workflow if there are failed images
           if [[ -n "$failed_images" ]]; then
-            echo "The following images failed to process:"
-            echo -e "$failed_images"
+            echo -e "The following images failed to process:\n$failed_images"
             exit 1
           fi
