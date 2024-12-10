@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . /app
 
 # Expose the application port
-EXPOSE 80
+EXPOSE 443
 
 LABEL "author details"
 
