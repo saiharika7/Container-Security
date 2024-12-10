@@ -13,11 +13,10 @@ on:
         default: "1.0"
 
 jobs:
-  BuildScanPush:
+  ListAndProcessDockerfiles:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout the repository
+      # Step 1: Checkout code
       - name: Checkout Code
         uses: actions/checkout@v3
 
@@ -33,14 +32,15 @@ jobs:
             dockerfiles=$(echo "${{ github.event.inputs.DockerFiles }}" | tr ',' '\n')
           fi
           echo "$dockerfiles" > dockerfiles.txt
-          echo "::set-output name=dockerfiles::$dockerfiles"
+          echo "DOCKERFILES=$dockerfiles" >> $GITHUB_ENV
 
-      # Step 3: Process Dockerfiles to build, scan, and push
-      - name: Build, Scan, and Push Docker Images
+      # Step 3: Process each Dockerfile
+      - name: Build, Scan, and Push Images
         env:
           ACR_SERVER: ${{ secrets.ACR_SERVER }}
           ACR_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
           ACR_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          DOCKERFILES: ${{ env.DOCKERFILES }}
         run: |
           failed_images=""
           while IFS= read -r dockerfile; do
@@ -50,29 +50,36 @@ jobs:
             full_image_name="$ACR_SERVER/$image_name:$image_version"
 
             # Build Docker Image
-            echo "Building Docker Image: $full_image_name"
             docker build -t "$full_image_name" -f "$dockerfile" .
 
-            # Run Trivy GitHub Action to scan for vulnerabilities
-            echo "::set-env name=FULL_IMAGE_NAME::$full_image_name"
+            # Save Image Name for Next Steps
+            echo "FULL_IMAGE_NAME=$full_image_name" >> $GITHUB_ENV
 
+            # Trivy Scanning (Next Step)
           done < dockerfiles.txt
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy Vulnerability Scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.FULL_IMAGE_NAME }}
           format: 'sarif'
           output: 'trivy-results.sarif'
 
-      - name: Upload Trivy scan results to GitHub Security tab
+      - name: Upload Trivy Scan Results
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
 
-      # Step 4: Push Docker Images to ACR
-      - name: Push Docker Images
+      - name: Push Docker Image to ACR
         run: |
-          echo "Pushing image ${{ env.FULL_IMAGE_NAME }} to Azure Container Registry..."
           echo "$ACR_PASSWORD" | docker login "$ACR_SERVER" -u "$ACR_USERNAME" --password-stdin
-          docker push "${{ env.FULL_IMAGE_NAME }}"
+          docker push ${{ env.FULL_IMAGE_NAME }}
+
+      - name: Log Failed Images
+        if: always()
+        run: |
+          if [[ -n "$failed_images" ]]; then
+            echo "The following images failed to process:"
+            echo -e "$failed_images"
+            exit 1
+          fi
