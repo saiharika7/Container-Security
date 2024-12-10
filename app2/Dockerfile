@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install curl wget -y
 # Exposing an unnecessary port
 EXPOSE 443
 
-
 # Missing HEALTHCHECK instruction
 # No HEALTHCHECK specified
 
@@ -18,7 +17,6 @@ EXPOSE 443
 ENV SECRET_KEY=supersecretkey
 
 # Missing WORKDIR, files are copied into root directory
-COPY . /root
 
 # Deprecated MAINTAINER instruction
 MAINTAINER "bad@practice.com"
