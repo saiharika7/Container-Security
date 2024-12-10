@@ -1,4 +1,4 @@
-name: BuildScanPushDockerImage
+name: ScanPushDockerImage
 
 on:
   workflow_dispatch:
