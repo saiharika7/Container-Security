@@ -43,6 +43,7 @@ jobs:
         run: |
           echo "Installing Trivy..."
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh
+          export PATH=$PATH:$HOME/bin
           trivy --version
 
       - name: Process Dockerfiles
