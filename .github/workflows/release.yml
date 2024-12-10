@@ -20,7 +20,7 @@ jobs:
   ListAndProcessDockerfiles:
     runs-on: ubuntu-latest
     steps:
-            # Step to validate the branch
+      # Step to validate the branch
       - name: Validate Triggering Branch
         id: validate-branch
         run: |
@@ -33,6 +33,7 @@ jobs:
           else
             echo "Branch is invalid: ${{ github.event.inputs.branch }}"
             echo "valid=false" >> $GITHUB_ENV
+          fi
         shell: bash
   
       # Step to stop workflow if the branch is invalid
