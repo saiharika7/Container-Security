@@ -4,6 +4,5 @@ requests==2.31.0           # HTTP library
 pandas==2.1.1              # Data analysis library
 numpy==1.26.0              # Numerical computing
 sqlalchemy==2.1.0          # Database ORM
-psycopg2==2.9.7            # PostgreSQL adapter
 python-dotenv==1.0.0       # Environment variable management
 flask-restful==0.3.9       # REST API toolkit for Flask
