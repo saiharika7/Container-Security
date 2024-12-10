@@ -76,10 +76,14 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
-
+          
       - name: Push Docker Image to ACR
         run: |
-          docker push ${{ env.FULL_IMAGE_NAME }}
+          echo "Pushing Docker Image: $FULL_IMAGE_NAME"
+          docker push $FULL_IMAGE_NAME
+        env:
+          FULL_IMAGE_NAME: ${{ env.FULL_IMAGE_NAME }}
+
           
       - name: Log Failed Images
         if: always()
