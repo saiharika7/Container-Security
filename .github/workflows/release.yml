@@ -51,11 +51,11 @@ jobs:
         run: |
           > dockerfiles.txt
           if [[ -z "${{ github.event.inputs.DockerFiles }}" ]]; then
-            dockerfiles=$(find . -name 'Dockerfile')
+            dockerfiles=$(find . -name 'Dockerfile' | tr '\n' ' ')
             echo "Auto-detected Dockerfiles:"
             echo "$dockerfiles"
           else
-            dockerfiles=$(echo "${{ github.event.inputs.DockerFiles }}" | tr ',' '\n')
+            dockerfiles=$(echo "${{ github.event.inputs.DockerFiles }}" | tr ',' ' ')
           fi
           echo "$dockerfiles" > dockerfiles.txt
           echo "DOCKERFILES=$dockerfiles" >> $GITHUB_ENV
@@ -79,7 +79,7 @@ jobs:
       - name: Process Dockerfiles
         run: |
           failed_images=""
-          while IFS= read -r dockerfile; do
+          for dockerfile in $DOCKERFILES; do
             echo "Processing Dockerfile: $dockerfile"
             image_name=$(basename $(dirname $dockerfile))
             image_version="${{ github.event.inputs.ImageVersion }}"
@@ -108,7 +108,7 @@ jobs:
               failed_images="$failed_images\n$full_image_name (Push Failed)"
               continue
             fi
-          done < dockerfiles.txt
+          done
 
           # Log and fail the workflow if there are failed images
           if [[ -n "$failed_images" ]]; then
