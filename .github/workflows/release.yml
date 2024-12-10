@@ -11,11 +11,37 @@ on:
         description: "Provide the Image Version to Build"
         required: true
         default: "1.0"
+      branch:
+        description: "Branch to trigger the workflow"
+        required: true
+        default: "main"
 
 jobs:
   ListAndProcessDockerfiles:
     runs-on: ubuntu-latest
     steps:
+            # Step to validate the branch
+      - name: Validate Triggering Branch
+        id: validate-branch
+        run: |
+          echo "Validating branch: ${{ github.event.inputs.branch }}"
+          if [[ "${{ github.event.inputs.branch }}" == "main" ]] || \
+             [[ "${{ github.event.inputs.branch }}" == release-* ]] || \
+             [[ "${{ github.event.inputs.branch }}" == releases-* ]]; then
+            echo "Branch is valid."
+            echo "valid=true" >> $GITHUB_ENV
+          else
+            echo "Branch is invalid: ${{ github.event.inputs.branch }}"
+            echo "valid=false" >> $GITHUB_ENV
+        shell: bash
+  
+      # Step to stop workflow if the branch is invalid
+      - name: Stop Workflow if Branch is Invalid
+        if: ${{ env.valid == 'false' }}
+        run: |
+          echo "Workflow will not run on this branch."
+          exit 1
+
       - name: Checkout Code
         uses: actions/checkout@v3
 
