@@ -5,10 +5,3 @@ FROM ubuntu:22.04
 # Installing packages without pinned versions and without using `-y`
 RUN apt-get update && apt-get install curl wget -y
 
-# Exposing an unnecessary port
-EXPOSE 443
-
-# Missing WORKDIR, files are copied into root directory
-
-# Deprecated MAINTAINER instruction
-MAINTAINER "bad@practice.com"
