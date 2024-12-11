@@ -10,7 +10,7 @@ COPY . /app
 # Expose the application port
 EXPOSE 443
 
-LABEL "author details"
+LABEL "author detailss"
 
 # Run the application
 ENTRYPOINT ["dotnet", "MyApp.dll"]
