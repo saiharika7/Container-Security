@@ -6,4 +6,3 @@ RUN apt-get update && apt-get install curl wget -y
 
 # Exposing an unnecessary port
 EXPOSE 443
-
