@@ -19,4 +19,4 @@ ENV SECRET_KEY=supersecretkey
 # Missing WORKDIR, files are copied into root directory
 
 # Deprecated MAINTAINER instruction
-MAINTAINER "bad@practice.comm"
+MAINTAINER "bad@practice.com"
