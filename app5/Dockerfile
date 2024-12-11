@@ -7,9 +7,10 @@ WORKDIR /app
 # Copy application files
 COPY . /app
 
-
-
-LABEL "author details"
+# Add metadata for the author
+LABEL author="Your Name" \
+      description="MyApp Docker Image with Health Check" \
+      version="1.0"
 
 # Run the application
 ENTRYPOINT ["dotnet", "MyApp.dll"]
