@@ -1,5 +1,5 @@
 # Use a Microsoft Windows Server Core image with .NET runtime
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-windowsservercore-ltsc2022
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-windowsservercore-ltsc2023
 
 # Set the working directory
 WORKDIR /app
