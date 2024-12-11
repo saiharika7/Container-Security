@@ -16,9 +16,4 @@ LABEL author="Your Name" \
 ENTRYPOINT ["dotnet", "MyApp.dll"]
 
 # Add a health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 `
-    CMD powershell -Command `
-    try { `
-        $response = Invoke-WebRequest -Uri http://localhost:80/health -UseBasicParsing; `
-        if ($response.StatusCode -eq 200) { exit 0 } else { exit 1 } `
-    } catch { exit 1 }
+HEALTHCHECK --interval=30s CMD curl -f http://localhost:8080/health || exit 1
