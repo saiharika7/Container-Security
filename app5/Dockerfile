@@ -7,8 +7,7 @@ WORKDIR /app
 # Copy application files
 COPY . /app
 
-# Expose the application port
-EXPOSE 443
+
 
 LABEL "author details"
 
