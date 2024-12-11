@@ -7,10 +7,3 @@ RUN apt-get update && apt-get install curl wget -y
 # Exposing an unnecessary port
 EXPOSE 443
 
-# Missing HEALTHCHECK instruction
-# No HEALTHCHECK specified
-
-# Missing WORKDIR, files are copied into root directory
-
-# Deprecated MAINTAINER instruction
-MAINTAINER "bad@practice.com"
