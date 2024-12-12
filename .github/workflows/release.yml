@@ -125,6 +125,7 @@ jobs:
           fi
 
       - name: Upload Trivy Reports
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: trivy-reports
