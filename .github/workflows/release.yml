@@ -17,10 +17,10 @@ on:
         default: "main"
 
 jobs:
-  ListAndProcessDockerfiles:
+  ScanandPushImages:
     runs-on: ubuntu-latest
     steps:
-      # Step to validate the branch
+      # Validate Triggering Branch
       - name: Validate Triggering Branch
         id: validate-branch
         run: |
@@ -31,17 +31,14 @@ jobs:
             echo "Branch is valid."
             echo "valid=true" >> $GITHUB_ENV
           else
-            echo "Branch is invalid: ${{ github.event.inputs.branch }}"
+            echo "Branch is invalid."
             echo "valid=false" >> $GITHUB_ENV
           fi
-        shell: bash
-  
-      # Step to stop workflow if the branch is invalid
+
+      # Stop Workflow if Branch is Invalid
       - name: Stop Workflow if Branch is Invalid
         if: ${{ env.valid == 'false' }}
-        run: |
-          echo "Workflow will not run on this branch."
-          exit 1
+        run: exit 1
 
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -66,38 +63,47 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Install Trivy via Package Manager
+      - name: Install Trivy
         run: |
           sudo apt-get update
           sudo apt-get install -y wget apt-transport-https gnupg lsb-release
           wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update
           sudo apt-get install -y trivy
           trivy --version
 
       - name: Process Dockerfiles
+        id: process_dockerfiles
         run: |
           failed_images=""
+          mkdir -p trivy_reports
+
           for dockerfile in $DOCKERFILES; do
             echo "Processing Dockerfile: $dockerfile"
-            image_name=$(basename $(dirname $dockerfile))
+            dir=$(dirname "$dockerfile")
+            image_name=$(basename "$dir")
             image_version="${{ github.event.inputs.ImageVersion }}"
             full_image_name="${{ secrets.ACR_SERVER }}/$image_name:$image_version"
 
+            cd "$dir" || exit 1
+
             # Build Docker Image
             echo "Building image: $full_image_name"
-            if ! docker build -t "$full_image_name" -f "$dockerfile" .; then
+            if ! docker build -t "$full_image_name" -f Dockerfile .; then
               echo "Failed to build $full_image_name"
               failed_images="$failed_images\n$full_image_name (Build Failed)"
+              cd - || exit 1
               continue
             fi
 
             # Trivy Scan
             echo "Scanning image: $full_image_name"
-            if ! trivy image --severity HIGH,MEDIUM --exit-code 1 "$full_image_name"; then
+            trivy_report="trivy_reports/${image_name}_report.html"
+            if ! trivy image --severity HIGH,MEDIUM --exit-code 1 --format template --template "@contrib/html.tpl" -o "$trivy_report" "$full_image_name"; then
               echo "Vulnerability scan failed for $full_image_name"
               failed_images="$failed_images\n$full_image_name (Vulnerabilities Found)"
+              cd - || exit 1
               continue
             fi
 
@@ -106,12 +112,31 @@ jobs:
             if ! docker push "$full_image_name"; then
               echo "Failed to push $full_image_name"
               failed_images="$failed_images\n$full_image_name (Push Failed)"
+              cd - || exit 1
               continue
             fi
+
+            cd - || exit 1
           done
 
-          # Log and fail the workflow if there are failed images
+          echo "$failed_images" > failed_images.txt
           if [[ -n "$failed_images" ]]; then
-            echo -e "The following images failed to process:\n$failed_images"
             exit 1
+          fi
+
+      - name: Upload Trivy Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-reports
+          path: trivy_reports/
+
+      - name: Log Failed Images
+        if: always()
+        run: |
+          if [[ -f failed_images.txt ]]; then
+            echo "The following images failed:"
+            cat failed_images.txt
+          else
+            echo "No failed images."
           fi
