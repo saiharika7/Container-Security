@@ -7,7 +7,7 @@ COPY . .
 RUN go build -o app .
 
 # Runtime stage
-FROM alpine:latest
+FROM alpine:3.21.0
 WORKDIR /app
 COPY --from=builder /src/app .
 
